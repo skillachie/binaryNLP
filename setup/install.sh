@@ -5,7 +5,7 @@ echo 'Done downloading model...'
 
 #Extract model to directory
 echo 'Extracting model...'
-tar -xf model.tgz -C ../model2 --strip-components=1
+tar -xf model.tgz -C ../model --strip-components=1
 echo 'Done extracting model...'
 
 #Extract the data directory
@@ -19,7 +19,7 @@ if [ ! -d $HOME/py_env ]; then
 	virtualenv py_env
 fi
 
-source $HOME/py_env/bin/activate
+py_env/bin/activate
 pip install -U numpy scipy scikit-learn
 pip install pandas
 
