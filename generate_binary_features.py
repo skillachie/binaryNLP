@@ -32,5 +32,6 @@ def text_classif_features(directory):
 
 if __name__ == '__main__':
 	directory_location= os.path.join(os.path.dirname(__file__), 'data')
-	print directory_location
+	abs_dir_location = os.path.abspath(directory_location)
+	print abs_dir_location
 	text_classif_features(directory_location)

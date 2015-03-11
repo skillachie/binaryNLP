@@ -22,25 +22,9 @@ class CategorizeArticles(object):
 	"""
 
 	def __init__(self):
-
+		pass
 		#TODO accept path, startdate, enddate as arguments
-		self.start_date = datetime.datetime(2009, 1, 1)
-		self.end_date = datetime.datetime(2014, 12, 31)
-		self.date_match = re.compile('\d+-\d+-\d+-\d+-\d+-\d+')
 
-
-		#path = "/home/dvc2106/newsblaster_project/nb_migration/stream/"
-		path = "/home/dvc2106/newsblaster_project/binaryNLP/data/"
-		extraction_path = "/home/dvc2106/newsblaster_project/nb_migration/stream/"
-
-		stream_cat_results_file = extraction_path + "stream_cat_results.txt"
-		article_list_results_file = extraction_path + "article_list.txt"
-
-		stream_cat_results = []
-		#temp
-		article_list = []
-
-		directories = os.listdir(path)
 
 
 	#def run(self,path,categorize_articles,save_results):
@@ -66,20 +50,22 @@ class CategorizeArticles(object):
 
 		mgm = Manager()
 		prediction_results = mgm.list()
-
+		pprint(directories)
 		for directory in directories:
 			pool.apply_async(categorize_articles, args=((directory,date_match,start_date,end_date,path,prediction_results),))
 			#pool.apply_async(categorize_articles, args=((directory,date_match,start_date,end_date,path,prediction_results),),callback=save_results)
 		pool.close()
 		pool.join()
 
+		#print "done with results"
+		#print prediction_results
 		return prediction_results
 
 		#print "here .."
 		
 		# - Check results
-	#	for result in prediction_results:
-	#		pprint(result)
+		#for result in prediction_results:
+		#	pprint(result)
 
 		#pprint(prediction_results)
 		#pool.macategorize_articles,[(directories,date_match,start_date,end_date)])
@@ -117,7 +103,7 @@ def categorize_articles(arg_list):
 				files = os.listdir(articles_location)
 			else:
 				raise Exception('File location not valid.',articles_location)
-			
+		
 			# - Fully qualified file name
 			articles_list = []
 			for file_name in files:
@@ -128,10 +114,12 @@ def categorize_articles(arg_list):
 			# - Initialize text classification model
 			#TODO make this a shared object. If passed to each process it is pickled and copied
 			# which defeats the purpose
+			print 'loading model..'
 			txt_classifier = TxtClassificationModel()
 			
 			# - Get predictions
-			preds = txt_classifier.predict_labels(articles_list)
+			preds = txt_classifier.predict_labels(articles_list,directory)
+			print 'end of predictions'
 			prediction_results.extend(preds)
 			return prediction_results
 		#	prediction_results.append(preds)

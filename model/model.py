@@ -10,14 +10,13 @@ class TxtClassificationModel(object):
 	def __init__(self):
 		self.class_loc = os.path.dirname(__file__)
 
-		if self.class_loc != '':
-			self.class_loc = self.class_loc + '/'
-
+		self.class_loc = os.path.abspath(self.class_loc) + '/'
 		self.load_tfidf()
 		self.load_clf()
 		self.load_le()
 
 	def load_tfidf(self):
+		print self.class_loc
 		self.vec = joblib.load(self.class_loc + 'tfidf_vectorizer.pkl')
 
 	def load_clf(self):
@@ -32,14 +31,12 @@ class TxtClassificationModel(object):
 		return(self.le.inverse_transform(y_pred))
 
 
-	def predict_labels(self,files):
+	def predict_labels(self,files,directory):
 		predictions = []
 		y_preds = self._predict_labels_only(files)
-
 		for file_path,y_pred in zip(files,y_preds):
 			file_meta = file_path.split('/')
-			date = file_meta[6]
-
+			date = directory
 			predictions.append({'date':date,'category':y_pred,'file':file_path})
 
 		return(predictions)
@@ -54,9 +51,10 @@ class TxtClassificationModel(object):
 #TODO load the other & world model
 if __name__ == '__main__':
 
-	# /proj/nlpdisk3/nlpusers/newsblaster_project/binarynlp/model/binaryNLP/data/2011-01-03-04-19-00/www.foxnews.com.9225.txt
-	path = os.path.abspath('../data')
+	class_loc = os.path.dirname(__file__)
+	path = os.path.abspath(class_loc) + '/../data'
 	pprint(path)
+	directory = '2011-01-03-04-19-00'
 	files =  [ '/2011-01-03-04-19-00/www.foxnews.com.9225.txt',
 		'/2011-01-03-04-19-00/www.foxnews.com.492.txt',
 		'/2011-01-03-04-19-00/www.foxnews.com.9235.txt',
@@ -68,4 +66,4 @@ if __name__ == '__main__':
 		files_list.append(path + file_name)
 
 	txt_classifier = TxtClassificationModel()
-	pprint(txt_classifier.predict_labels(files_list))
+	pprint(txt_classifier.predict_labels(files_list,directory))

@@ -19,11 +19,14 @@ if [ ! -d $HOME/py_env ]; then
 	virtualenv py_env
 fi
 
-py_env/bin/activate
+source py_env/bin/activate
 pip install -U numpy scipy scikit-learn
 pip install pandas
 
+
+echo '*********INSTRUCTIONS***********'
+
 echo 'To test functionality run do the following'
-echo 'source $HOME/py_env/bin/activate'
-echo 'python generate_binary_features.py '
-echo 'This should create a csv called '
+echo '1.source setup/py_env/bin/activate'
+echo '2.python generate_binary_features.py '
+echo '3.This should create a csv called nlp_category_binary_features.csv '
