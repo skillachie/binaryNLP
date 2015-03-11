@@ -60,7 +60,7 @@ class CategorizeArticles(object):
 		cpu_count = multiprocessing.cpu_count()
 
 		# - Hardcode to 2 until the model is passed as shared object
-		pool = Pool(8)
+		pool = Pool(2)
 
 		directories = os.listdir(path)
 

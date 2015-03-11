@@ -1,5 +1,4 @@
 
-
 #Get model
 curl -O http://island2.cs.columbia.edu:8013/model.tgz
 echo 'Done downloading model...'
@@ -20,5 +19,11 @@ if [ ! -d $HOME/py_env ]; then
 	virtualenv py_env
 fi
 
+source $HOME/py_env/bin/activate
 pip install -U numpy scipy scikit-learn
 pip install pandas
+
+echo 'To test functionality run do the following'
+echo 'source $HOME/py_env/bin/activate'
+echo 'python generate_binary_features.py '
+echo 'This should create a csv called '

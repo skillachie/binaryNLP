@@ -1,6 +1,7 @@
 from categorize_articles import CategorizeArticles
 from binary_features import CategorySeries
 from pprint import pprint
+import os
 
 '''
 Script used to generate various NLP binary features
@@ -30,5 +31,6 @@ def text_classif_features(directory):
 	#quantile_series.to_csv("/home/dvc2106/categorization_migration/nlpCategorization/nlp_binary_features.csv")
 
 if __name__ == '__main__':
-	directory_location='/home/dvc2106/newsblaster_project/nb_migration/stream'
+	directory_location= os.path.join(os.path.dirname(__file__), 'data')
+	print directory_location
 	text_classif_features(directory_location)
