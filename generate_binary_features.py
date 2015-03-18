@@ -24,7 +24,7 @@ def text_classif_features(directory):
 		predictions.append(result)
 
 	# - Generate binary features
-	categories_series = CategorySeries()
+	categories_series = CategorySeries(aggr_freq='hourly')
 	series_result = categories_series.get_category_timeseries(predictions)
 
 	series_result.to_csv('nlp_category_binary_features.csv')

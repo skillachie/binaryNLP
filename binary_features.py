@@ -91,45 +91,74 @@ class BinaryBase(object):
 	
 class CategorySeries(BinaryBase):
 
-	def __init__(self):
+	def __init__(self,aggr_freq='daily'):
 		self.category_list = []
+		self.aggr_freq = aggr_freq
 
 		# TODO  accept paramter later
-		self.start_date = '2009-01-01'
-		self.end_date = '2014-12-31'
+		self.start_date = '2011-01-01'
+		self.end_date = '2011-01-05'
+		# Business date for range
 		self.bus_range = pd.bdate_range(start=self.start_date, end=self.end_date)
 
+		if self.aggr_freq == 'hourly':
+			print 'Creating hourly series ..'
+			self._set_hourly_bus_hours()
+
+
+	def _set_hourly_bus_hours(self):
+		bus_day_hours = []
+		for bday in self.bus_range:
+			bday_range = pd.date_range(bday,periods=24, freq="1H")
+			bus_day_hours.extend(bday_range)
+
+		self.bus_range = pd.DatetimeIndex(bus_day_hours)
+
+
 	def _aggr_predictions(self,predictions):
-		
+
+		print 'Aggregating results by date...'		
+
 		date_by_category = defaultdict(dict)
 		for prediction in predictions:
 
 				date = datetime.datetime.strptime(prediction['date'], '%Y-%m-%d-%H-%M-%S')
-				short_date = datetime.date(date.year, date.month, date.day)
+				if self.aggr_freq == 'hourly':
+					hour = datetime.time(date.hour)
+					short_date = datetime.date(date.year, date.month, date.day)
+					date = datetime.datetime.combine(short_date, hour)
+				else:
+					date = datetime.date(date.year, date.month, date.day)
 
 				predicted_category = prediction['category']
 		
-				if short_date in date_by_category:
-					date_by_category[short_date][predicted_category] += 1
+				if date in date_by_category:
+					date_by_category[date][predicted_category] += 1
 				else:
 					predicted_categories_count = defaultdict(int)
 					predicted_categories_count[predicted_category] += 1
-					date_by_category[short_date] = predicted_categories_count
-		
+					date_by_category[date] = predicted_categories_count
+	
 		return date_by_category
 
 
-	def get_category_timeseries(self,predictions,period=7):
+	def get_category_timeseries(self,predictions):
 		dated_categories = self._aggr_predictions(predictions)
 		series = self._create_series(dated_categories)
 
 		series = series.fillna(0)
-		#print series
 	
 		#TODO move business filer to seperate method and base class	
 		# Filter on only business days
 		to_drop = []
 		for day_count in xrange(0,len(series.index)):
+			#print 'looking at series'
+			#print series.index[day_count]
+			#print type(series.index[day_count])
+
+			#print 'Comparision...'
+			#print self.bus_range
+			#print type(self.bus_range[1])
 			if series.index[day_count] not in self.bus_range:
 				# Move values forward for this day to the next
 				# Cant use standard pandas functions since it will shit entire dataset
@@ -159,14 +188,10 @@ class CategorySeries(BinaryBase):
 		print 'passed business day filter'
 		print series
 
+
 		quantile_series = self._create_binary_series_quantile(series)
 		return quantile_series
 
 if __name__ == "__main__":
 	category_series = CategorySeries()
-	#category_list = category_series.get_category_timeseries("/home/dvc2106/newsblaster_project/nb_migration/cat_results_stream.txt_2011",3)
-	#category_list = category_series._read_results("/home/dvc2106/newsblaster_project/nb_migration/stream/stream_cat_results.txt")
-	#pprint(category_list)
-	#category_series.get_category_timeseries("/home/dvc2106/newsblaster_project/nb_migration/2011-01-01-04-34-52/cat_results_dated.txt",3)
-	#category_series.get_category_timeseries("/home/dvc2106/newsblaster_project/nb_migration/cat_results_stream.txt",3)
-	#category_series.get_category_timeseries("/home/dvc2106/newsblaster_project/nb_migration/stream/stream_cat_results.txt",3)
+	#category_list = category_series.get_category_timeseries(results,'hourly')

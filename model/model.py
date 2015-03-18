@@ -16,7 +16,6 @@ class TxtClassificationModel(object):
 		self.load_le()
 
 	def load_tfidf(self):
-		print self.class_loc
 		self.vec = joblib.load(self.class_loc + 'tfidf_vectorizer.pkl')
 
 	def load_clf(self):
