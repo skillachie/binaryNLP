@@ -1,6 +1,6 @@
 
 #Get model
-curl -O http://island2.cs.columbia.edu:8013/model.tgz
+curl -O http://island1.cs.columbia.edu:8013/model.tgz
 echo 'Done downloading model...'
 
 #Extract model to directory

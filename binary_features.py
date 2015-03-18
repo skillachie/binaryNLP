@@ -96,8 +96,8 @@ class CategorySeries(BinaryBase):
 		self.aggr_freq = aggr_freq
 
 		# TODO  accept paramter later
-		self.start_date = '2011-01-01'
-		self.end_date = '2011-01-05'
+		self.start_date = '2009-01-01'
+		self.end_date = '2014-12-31'
 		# Business date for range
 		self.bus_range = pd.bdate_range(start=self.start_date, end=self.end_date)
 

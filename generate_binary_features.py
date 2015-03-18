@@ -7,10 +7,7 @@ import os
 Script used to generate various NLP binary features
 '''
 
-#TODO call categorize articles with start date, end date and the path for the articles
-# Get results of categorizations
-# Generate binary features
-# Save to file
+#TODO create as CLI script that accepts parameters
 
 def text_classif_features(directory):
 
@@ -24,6 +21,7 @@ def text_classif_features(directory):
 		predictions.append(result)
 
 	# - Generate binary features
+	#categories_series = CategorySeries(aggr_freq='daily')
 	categories_series = CategorySeries(aggr_freq='hourly')
 	series_result = categories_series.get_category_timeseries(predictions)
 
