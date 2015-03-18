@@ -27,7 +27,7 @@ class BinaryBase(object):
 		
 		# Set all NANs to zero
 		tmp_df = significant_df.fillna(0)
-		pprint(tmp_df)	
+		#pprint(tmp_df)	
 
 		# Set all values => 1 to 1 
 		tmp_df[(tmp_df >= 1)] = 1
@@ -51,7 +51,7 @@ class BinaryBase(object):
 		# -Fill forward pct indicating no change was observed
 		#pc = pc.fillna(method='ffill')
 		#pc = pc.fillna(0)
-		print pc
+		#print pc
 		dc = pc.apply(pd.qcut,reduce=False,args=(10,[1,2,3,4,5,6,7,8,9,10],False,3,))
 
 		# Fill missing value with lowest quantile
@@ -124,7 +124,7 @@ class CategorySeries(BinaryBase):
 		series = self._create_series(dated_categories)
 
 		series = series.fillna(0)
-		print series
+		#print series
 	
 		#TODO move business filer to seperate method and base class	
 		# Filter on only business days

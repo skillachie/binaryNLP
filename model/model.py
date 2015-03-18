@@ -31,12 +31,11 @@ class TxtClassificationModel(object):
 		return(self.le.inverse_transform(y_pred))
 
 
-	def predict_labels(self,files,directory):
+	def predict_labels(self,files,date):
 		predictions = []
 		y_preds = self._predict_labels_only(files)
 		for file_path,y_pred in zip(files,y_preds):
 			file_meta = file_path.split('/')
-			date = directory
 			predictions.append({'date':date,'category':y_pred,'file':file_path})
 
 		return(predictions)

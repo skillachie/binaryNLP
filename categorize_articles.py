@@ -22,120 +22,77 @@ class CategorizeArticles(object):
 	"""
 
 	def __init__(self):
-		pass
 		#TODO accept path, startdate, enddate as arguments
+		self.start_date = datetime.datetime(2009, 1, 1)
+		self.end_date = datetime.datetime(2014, 12, 31)
+		self.date_match = re.compile('\d+-\d+-\d+-\d+-\d+-\d+')
 
 
-
-	#def run(self,path,categorize_articles,save_results):
 	def run(self,path):
-
-		#TODO argument
-		start_date = datetime.datetime(2009, 1, 1)
-		end_date = datetime.datetime(2014, 12, 31)
-		date_match = re.compile('\d+-\d+-\d+-\d+-\d+-\d+')
-
-
-		#TODO use queue pattern to speed up the process
-		#/home/dvc2106/newsblaster_project/corenlp/corenlp/client.py
-		# TODO later figure out a way to share the model
-
-		#txt_classifier = TxtClassificationModel()
 		cpu_count = multiprocessing.cpu_count()
-
-		# - Hardcode to 2 until the model is passed as shared object
-		pool = Pool(2)
+		n_procs = cpu_count -1
 
 		directories = os.listdir(path)
 
 		mgm = Manager()
 		prediction_results = mgm.list()
-		pprint(directories)
-		for directory in directories:
-			pool.apply_async(categorize_articles, args=((directory,date_match,start_date,end_date,path,prediction_results),))
-			#pool.apply_async(categorize_articles, args=((directory,date_match,start_date,end_date,path,prediction_results),),callback=save_results)
-		pool.close()
-		pool.join()
+		job_queue = mgm.Queue()
 
-		#print "done with results"
-		#print prediction_results
+    # Add work items to job queue
+		for directory in directories:
+			job_queue.put(directory)
+
+    # - Pool
+		pool = []
+		for i in xrange(n_procs):
+			p = multiprocessing.Process(
+			target=categorize_articles, args=((job_queue, self.date_match,self.start_date,self.end_date,path,prediction_results),),)
+			p.start()
+			pool.append(p)
+
+		for p in pool:
+			p.join()
+	
+		print "Text Classification complete..."
+
 		return prediction_results
 
-		#print "here .."
-		
-		# - Check results
-		#for result in prediction_results:
-		#	pprint(result)
-
-		#pprint(prediction_results)
-		#pool.macategorize_articles,[(directories,date_match,start_date,end_date)])
-		#TODO - parralize code here 
-
-#prediction_results = []
-
-def save_results(result):
-	prediction_results.extend(result)
-
-def get_results():
-	return prediction_results
-
 def categorize_articles(arg_list):
-
-	# - Unpack variables
-	directory = arg_list[0]
+# - Unpack variables
+	job_queue = arg_list[0]
 	date_match = arg_list[1]
 	start_date = arg_list[2]
 	end_date = arg_list[3]
 	path = arg_list[4]
 	prediction_results = arg_list[5]
-	#txt_classifier = TxtClassificationModel()
-	
-	if date_match.match(directory):
-		date = datetime.datetime.strptime(directory, '%Y-%m-%d-%H-%M-%S')
-		if date >= start_date and date <= end_date:
-			pprint(directory)
 
-			# - Path to location of extracted files
-			articles_location = path + '/' +  directory 	
-			files = []
-			if os.path.exists(articles_location):
-				#TODO filter for only .txt here
-				files = os.listdir(articles_location)
-			else:
-				raise Exception('File location not valid.',articles_location)
-		
-			# - Fully qualified file name
-			articles_list = []
-			for file_name in files:
-				articles_list.append(articles_location + '/' + file_name)
-			files = None
+	txt_classifier = TxtClassificationModel()
+	while not job_queue.empty():
+		directory = job_queue.get(block=False)
+		if date_match.match(directory):
+			date = datetime.datetime.strptime(directory, '%Y-%m-%d-%H-%M-%S')
+			if date >= start_date and date <= end_date:
+				pprint(directory)
 
+				# - Path to location of extracted files
+				articles_location = path + '/' +  directory
+				files = []
+				if os.path.exists(articles_location):
+					#TODO filter for only .txt here
+					files = os.listdir(articles_location)
+				else:
+					raise Exception('File location not valid.',articles_location)
 
-			# - Initialize text classification model
-			#TODO make this a shared object. If passed to each process it is pickled and copied
-			# which defeats the purpose
-			print 'loading model..'
-			txt_classifier = TxtClassificationModel()
-			
-			# - Get predictions
-			preds = txt_classifier.predict_labels(articles_list,directory)
-			print 'end of predictions'
-			prediction_results.extend(preds)
-			return prediction_results
-		#	prediction_results.append(preds)
+				# - Fully qualified file name
+				articles_list = []
+				for file_name in files:
+					articles_list.append(articles_location + '/' + file_name)
+				files = None
 
-# - Get save list of predictions to be returned once done for all
-#sys.exit(1)
+				# - Get predictions
+				preds = txt_classifier.predict_labels(articles_list,directory)
+				prediction_results.extend(preds)
 
-#if not os.path.exists(cat_results_path):
-	# Do categorization using perl script
-	#subprocess.call(["/home/dvc2106/categorization_migration/src/BINS/do_categorizing.pl", file_list_path, cat_results_path])
-
-# Add date of categorization to file
-#categorization_results = [line.strip() for line in open(cat_results_path)]	
-#for cat_result in categorization_results:
-#	stream_cat_results.append(directory + " " + cat_result)
-		
 
 def move_files_newsblaster(path):
 	'''
