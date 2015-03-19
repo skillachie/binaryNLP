@@ -21,16 +21,20 @@ class CategorizeArticles(object):
 
 	"""
 
-	def __init__(self):
+	def __init__(self,
+                     match='\d+-\d+-\d+-\d+-\d+-\d+',
+                     start=datetime.datetime(2009,1,1),
+                     end=datetime.datetime(2014,12,31)):
 		#TODO accept path, startdate, enddate as arguments
-		self.start_date = datetime.datetime(2009, 1, 1)
-		self.end_date = datetime.datetime(2014, 12, 31)
-		self.date_match = re.compile('\d+-\d+-\d+-\d+-\d+-\d+')
+		self.start_date = start
+		self.end_date = end
+		self.date_match = re.compile(match)
 
 
-	def run(self,path):
-		cpu_count = multiprocessing.cpu_count()
-		n_procs = cpu_count -1
+	def run(self,path,cpu_count = 0):
+                if not cpu_count:
+                        cpu_count = multiprocessing.cpu_count()
+		n_procs = cpu_count -1 if cpu_count > 1 else 1
 
 		directories = os.listdir(path)
 
