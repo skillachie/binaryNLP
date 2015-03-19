@@ -131,6 +131,7 @@ class CategorySeries(BinaryBase):
 					date = datetime.date(date.year, date.month, date.day)
 
 				predicted_category = prediction['category']
+				#predicted_category = prediction['category'] + '_location_' + prediction['location']
 		
 				if date in date_by_category:
 					date_by_category[date][predicted_category] += 1
@@ -144,9 +145,15 @@ class CategorySeries(BinaryBase):
 
 	def get_category_timeseries(self,predictions):
 		dated_categories = self._aggr_predictions(predictions)
+
+
 		series = self._create_series(dated_categories)
 
 		series = series.fillna(0)
+		
+		# For debug
+		series.to_csv('raw_topic_counts.csv')
+
 	
 		#TODO move business filer to seperate method and base class	
 		# Filter on only business days
