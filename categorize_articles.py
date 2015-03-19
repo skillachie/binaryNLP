@@ -31,7 +31,7 @@ class CategorizeArticles(object):
 		self.date_match = re.compile(match)
 
 
-	def run(self,path,cpu_count = 0):
+	def run(self,path,cpu_count,match,start,end):
                 if not cpu_count:
                         cpu_count = multiprocessing.cpu_count()
 		n_procs = cpu_count -1 if cpu_count > 1 else 1

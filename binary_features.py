@@ -91,9 +91,10 @@ class BinaryBase(object):
 	
 class CategorySeries(BinaryBase):
 
-	def __init__(self,aggr_freq='daily'):
+	def __init__(self,start,end,aggr_freq='daily',add_noise=False):
 		self.category_list = []
 		self.aggr_freq = aggr_freq
+		self.add_noise = add_noise
 
 		# TODO  accept paramter later
 		self.start_date = '2009-01-01'
@@ -130,8 +131,8 @@ class CategorySeries(BinaryBase):
 				else:
 					date = datetime.date(date.year, date.month, date.day)
 
-				predicted_category = prediction['category']
-				#predicted_category = prediction['category'] + '_location_' + prediction['location']
+				#predicted_category = prediction['category']
+				predicted_category = prediction['category'] + '_location_' + prediction['location']
 		
 				if date in date_by_category:
 					date_by_category[date][predicted_category] += 1
@@ -154,18 +155,19 @@ class CategorySeries(BinaryBase):
 		# For debug
 		series.to_csv('raw_topic_counts.csv')
 
+		if self.add_noise:
+			pd_matrix = series.as_matrix()
+			noise = np.random.normal(size=pd_matrix.shape)
+			noise_m = pd_matrix + noise
+			series = pd.DataFrame(noise_m,series.index,series.columns.values)
+			series.to_csv('raw_topic_counts_noise.csv')
+
+
 	
 		#TODO move business filer to seperate method and base class	
 		# Filter on only business days
 		to_drop = []
 		for day_count in xrange(0,len(series.index)):
-			#print 'looking at series'
-			#print series.index[day_count]
-			#print type(series.index[day_count])
-
-			#print 'Comparision...'
-			#print self.bus_range
-			#print type(self.bus_range[1])
 			if series.index[day_count] not in self.bus_range:
 				# Move values forward for this day to the next
 				# Cant use standard pandas functions since it will shit entire dataset
