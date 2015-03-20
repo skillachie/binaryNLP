@@ -12,7 +12,8 @@ import argparse
 Script used to generate various NLP binary features
 '''
 
-def text_classif_features(directory,match,start,end,outpath,cpus,add_noise,aggr_freq):
+def text_classif_features(directory,match,start,end,outpath,cpus,aggr_freq,add_noise):
+
     # - Get predictions
     cat_articles = CategorizeArticles()
     results = cat_articles.run(directory,cpus,match,start,end)

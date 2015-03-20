@@ -18,6 +18,15 @@ class TxtClassificationModel(object):
 		self.cat_vec = joblib.load(self.class_loc + 'tfidf_vectorizer.pkl')
 		self.loc_vec = joblib.load(self.class_loc + 'location_tfidf_vectorizer.pkl')
 
+		# Set to ignore unkwon encoding
+		self.cat_vec.set_params(decode_error='ignore')
+		#cat_vec_params = self.cat_vec.get_params(deep=True)
+		#pprint(cat_vec_params)
+
+		self.loc_vec.set_params(decode_error='ignore')
+		#loc_vec_params = self.loc_vec.get_params(deep=True)
+		#pprint(loc_vec_params)
+
 	def load_clf(self):
 		self.cat_clf = joblib.load(self.class_loc + 'all_categories.pkl')
 		self.loc_clf = joblib.load(self.class_loc + 'location_clf.pkl')
@@ -45,6 +54,7 @@ class TxtClassificationModel(object):
 			predictions.append({'date':date,'location':y_loc_pred,'category':y_cat_pred,'file':file_path})
 
 		return(predictions)
+
 
 	def predict_labels_test(self,labels,files):
 		if len(labels) != len(files):
