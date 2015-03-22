@@ -39,8 +39,8 @@ class CategorizeArticles(object):
 		directories = os.listdir(path)
 
 		mgm = Manager()
-		prediction_results = mgm.list()
 		job_queue = mgm.Queue()
+		result_queue = mgm.Queue()
 
     # Add work items to job queue
 		for directory in directories:
@@ -50,7 +50,7 @@ class CategorizeArticles(object):
 		pool = []
 		for i in xrange(n_procs):
 			p = multiprocessing.Process(
-			target=categorize_articles, args=((job_queue, self.date_match,self.start_date,self.end_date,path,prediction_results),),)
+			target=categorize_articles, args=((job_queue, self.date_match,self.start_date,self.end_date,path,result_queue),),)
 			p.start()
 			pool.append(p)
 
@@ -58,7 +58,12 @@ class CategorizeArticles(object):
 			p.join()
 	
 		print "Text Classification complete..."
+		prediction_results = []
+		while not result_queue.empty():
+			#Evaluate performance of extend vs flatten
+			prediction_results.extend(result_queue.get(block=False)) 
 
+		print "Text Classification complete...1"
 		return prediction_results
 
 def categorize_articles(arg_list):
@@ -68,7 +73,7 @@ def categorize_articles(arg_list):
 	start_date = arg_list[2]
 	end_date = arg_list[3]
 	path = arg_list[4]
-	prediction_results = arg_list[5]
+	result_queue = arg_list[5]
 
 	txt_classifier = TxtClassificationModel()
 	while not job_queue.empty():
@@ -84,6 +89,9 @@ def categorize_articles(arg_list):
 				if os.path.exists(articles_location):
 					#TODO filter for only .txt here
 					files = os.listdir(articles_location)
+					#for filet in files_tmp:
+					#	if 'txt' in filet or 'html' in filet:
+					#		files.append(filet)
 				else:
 					raise Exception('File location not valid.',articles_location)
 
@@ -95,7 +103,7 @@ def categorize_articles(arg_list):
 
 				# - Get predictions
 				preds = txt_classifier.predict_labels(articles_list,directory)
-				prediction_results.extend(preds)
+				result_queue.put(preds)
 
 
 def move_files_newsblaster(path):
