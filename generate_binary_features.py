@@ -2,6 +2,7 @@
 
 from categorize_articles import CategorizeArticles
 from binary_features import CategorySeries
+from article_events import Events
 from pprint import pprint
 import datetime
 import os
@@ -23,15 +24,26 @@ def text_classif_features(directory,match,start,end,outpath,cpus,aggr_freq,add_n
     for result in results:
         predictions.append(result)
 
-    # - Generate binary features
-    #categories_series = CategorySeries(aggr_freq='daily')
-    #categories_series = CategorySeries(aggr_freq='hourly')
-
     categories_series = CategorySeries(start,end,aggr_freq,add_noise)
     series_result = categories_series.get_category_timeseries(predictions)
 
-    series_result.to_csv(outpath)
-    #quantile_series.to_csv("/home/dvc2106/categorization_migration/nlpCategorization/nlp_binary_features.csv")
+    series_result.to_csv('category_features.csv')
+
+    # Get  events 
+    events = Events(predictions) 
+    event_results = events.run()
+
+    event_counts = []
+    for result in event_results:
+      event_counts.append(result)
+
+
+    event_series = CategorySeries(start,end,aggr_freq,add_noise)
+    event_results = event_series.get_event_timeseries(event_counts)
+    event_results.to_csv('event_features.csv') 
+   
+    mpd = series_result.join(event_results, how='outer')
+    mpd.to_csv(outpath)
 
 def split_date(date_str):
     date_dt = datetime.datetime.strptime(date_str, '%Y-%m-%d')

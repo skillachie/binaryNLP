@@ -88,10 +88,10 @@ def categorize_articles(arg_list):
 				files = []
 				if os.path.exists(articles_location):
 					#TODO filter for only .txt here
-					files = os.listdir(articles_location)
-					#for filet in files_tmp:
-					#	if 'txt' in filet or 'html' in filet:
-					#		files.append(filet)
+					files_tmp = os.listdir(articles_location)
+					for filet in files_tmp:
+						if 'txt' in filet or 'html' in filet:
+							files.append(filet)
 				else:
 					raise Exception('File location not valid.',articles_location)
 
