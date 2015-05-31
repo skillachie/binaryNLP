@@ -15,7 +15,8 @@ from collections import defaultdict
 from multiprocessing import Pool,Manager
 import  multiprocessing
 from multiprocessing.pool import ThreadPool
-
+from sklearn.metrics.pairwise import pairwise_distances
+import numpy as np
 
 class Events(object):
 
@@ -26,12 +27,11 @@ class Events(object):
     articles = self._group_by_category()
 
     # Removing infrequent words
-    self.vec = TfidfVectorizer(input='filename',
-            stop_words=stopwords.words('english'),
-            sublinear_tf=True,
-            ngram_range=(1,2),
-            use_idf=True
-            )
+    #self.vec = TfidfVectorizer(input='filename',
+     #       stop_words=stopwords.words('english'),
+     #       ngram_range=(1,2),
+     #       use_idf=True
+     #       )
 
     
   def _group_by_category(self):
@@ -42,25 +42,40 @@ class Events(object):
 
     return article_categories    
 
-  def _identify_events(self,articles,debug=False):
+
+  def _identify_events(self,articles,event_result,debug=False):
 
     articles_list = []
     for article in articles:
       articles_list.append(article['file'])
 
+    # Removing infrequent words
+    self.vec = TfidfVectorizer(input='filename',
+            stop_words=stopwords.words('english'),
+            ngram_range=(1,2),
+            max_features=500,
+            sublinear_tf=True,
+            use_idf=True
+            )
+
     X = self.vec.fit_transform(articles_list)
-    print("n_samples: %d, n_features: %d" % X.shape)
+    #print("n_samples: %d, n_features: %d" % X.shape)
+    #print idf_vector
 
     af = AffinityPropagation().fit(X)
-    cluster_centers_indices = af.cluster_centers_indices_
+    #af = AffinityPropagation(damping=0.7).fit(X)
+    #cluster_centers_indices = af.cluster_centers_indices_
+
+
+    # Cluster ids
     labels = af.labels_
 
     if debug:
       results = pd.DataFrame(articles_list,labels)
-      file_name = directory + 'clusters.csv'
+      file_name = event_result['date'].strftime("%Y-%m-%d %H:%M:%S") + '_'+ event_result['category']  + '_' + event_result['location'] + 'clusters.csv'
       results.to_csv(file_name)
 
-    return labels, cluster_centers_indices
+    return labels, X
 
 
   def count_events(self,arg_list):
@@ -76,20 +91,57 @@ class Events(object):
       category = job[1]
       date = job[2]
       location = job[3]
-      print date, category
+      print date, category,location
 
-      event_result = {}
+      event_result = defaultdict(dict)
+
       event_result['date'] = date
       event_result['category'] = category
       event_result['category'] = category
       event_result['location'] = location
 
-      labels,cluster_centers_indices = self._identify_events(articles,debug)
-      num_events = len(cluster_centers_indices)
+      labels, tfidf_vectors = self._identify_events(articles,event_result,debug)
+      num_events = len(labels)
+
+      print num_events
+      print tfidf_vectors.shape
       
+      # Sanity check
+      if(len(labels) != tfidf_vectors.shape[0]):
+        raise Exception("Number of labels and tf-idf vectors do not match")
+     
+ 
       event_result['num_events'] = num_events
+      event_result['labels'] = labels
+      #event_result['tfidf_vectors'] = tfidf_vectors
+
+      articles_by_labels = defaultdict(list)
+      #tf_idf by date , category and label
+      for label, tfidf_vector in zip(event_result['labels'], tfidf_vectors):
+
+        #print '.....tf...'
+        #print tfidf_vector.toarray()
+
+        articles_by_labels[label].extend(tfidf_vector.toarray())  
+        #articles_by_labels[label].append(tfidf_vector.toarray())  
+     
+      # Average  cluster article tf_idfs
+      events_tfidf = defaultdict(dict)
+      for cluster_label in articles_by_labels:
+     
+        #print articles_by_labels[cluster_label]
+        tfidf_avg = np.mean(articles_by_labels[cluster_label],axis=0)
+        events_tfidf[cluster_label] = tfidf_avg
+        #event_result['events'] = { cluster_label: {'tfidf_avg': tfidf_avg}}
+
+      event_result['events'] = events_tfidf 
+      #TODO average intra-cluster similarity
+
+      #event_result['cluster_center_indices'] = cluster_centers_indices
+
       result_queue.put(event_result)
-    
+   
+  #TODO make  flexible for hourly as well 
   def _aggr_articles_by_date(self,articles):
 
     articles_by_date = defaultdict(list)
@@ -109,9 +161,12 @@ class Events(object):
 
   def _aggr_articles_by_location(self,articles):
 
+
     location_articles = defaultdict(list)
     for article in articles:
       location_articles[article['location']].append(article)
+
+  
 
     return location_articles
 
@@ -143,7 +198,8 @@ class Events(object):
     pool = []
     for i in xrange(n_procs):
       p = multiprocessing.Process(
-      target=self.count_events, args=((job_queue,result_queue,False),),)
+      #target=self.count_events, args=((job_queue,result_queue,True),),)
+      target=self.count_events, args=((job_queue,result_queue,True),),)
       p.start()
       pool.append(p)
 
