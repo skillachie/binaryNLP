@@ -27,11 +27,12 @@ class Events(object):
     articles = self._group_by_category()
 
     # Removing infrequent words
-    #self.vec = TfidfVectorizer(input='filename',
-     #       stop_words=stopwords.words('english'),
-     #       ngram_range=(1,2),
-     #       use_idf=True
-     #       )
+    self.vec = TfidfVectorizer(input='filename',
+            stop_words=stopwords.words('english'),
+            ngram_range=(1,1),
+            max_features=50,
+            use_idf=True
+            )
 
     
   def _group_by_category(self):
@@ -50,25 +51,23 @@ class Events(object):
       articles_list.append(article['file'])
 
     # Removing infrequent words
-    self.vec = TfidfVectorizer(input='filename',
-            stop_words=stopwords.words('english'),
-            ngram_range=(1,2),
-            max_features=500,
-            sublinear_tf=True,
-            use_idf=True
-            )
+    #vec = TfidfVectorizer(input='filename',
+    #        stop_words=stopwords.words('english'),
+    #        ngram_range=(1,1),
+    #        use_idf=True
+    #        )
 
     X = self.vec.fit_transform(articles_list)
     #print("n_samples: %d, n_features: %d" % X.shape)
     #print idf_vector
 
-    af = AffinityPropagation().fit(X)
+    labels = AffinityPropagation(max_iter=4000,damping=0.95,convergence_iter=400).fit_predict(X)
     #af = AffinityPropagation(damping=0.7).fit(X)
     #cluster_centers_indices = af.cluster_centers_indices_
 
 
     # Cluster ids
-    labels = af.labels_
+    #labels = af.labels_
 
     if debug:
       results = pd.DataFrame(articles_list,labels)
@@ -97,14 +96,10 @@ class Events(object):
 
       event_result['date'] = date
       event_result['category'] = category
-      event_result['category'] = category
       event_result['location'] = location
 
       labels, tfidf_vectors = self._identify_events(articles,event_result,debug)
-      num_events = len(labels)
-
-      print num_events
-      print tfidf_vectors.shape
+      num_events = len(set(labels))
       
       # Sanity check
       if(len(labels) != tfidf_vectors.shape[0]):
@@ -113,31 +108,25 @@ class Events(object):
  
       event_result['num_events'] = num_events
       event_result['labels'] = labels
-      #event_result['tfidf_vectors'] = tfidf_vectors
 
       articles_by_labels = defaultdict(list)
       #tf_idf by date , category and label
-      for label, tfidf_vector in zip(event_result['labels'], tfidf_vectors):
-
-        #print '.....tf...'
-        #print tfidf_vector.toarray()
-
-        articles_by_labels[label].extend(tfidf_vector.toarray())  
-        #articles_by_labels[label].append(tfidf_vector.toarray())  
-     
+      for label, tfidf_vector in zip(labels, tfidf_vectors):
+        articles_by_labels[label].append(tfidf_vector.toarray())  
+        
+ 
       # Average  cluster article tf_idfs
       events_tfidf = defaultdict(dict)
       for cluster_label in articles_by_labels:
-     
+    
         #print articles_by_labels[cluster_label]
         tfidf_avg = np.mean(articles_by_labels[cluster_label],axis=0)
         events_tfidf[cluster_label] = tfidf_avg
-        #event_result['events'] = { cluster_label: {'tfidf_avg': tfidf_avg}}
+          
 
       event_result['events'] = events_tfidf 
       #TODO average intra-cluster similarity
 
-      #event_result['cluster_center_indices'] = cluster_centers_indices
 
       result_queue.put(event_result)
    

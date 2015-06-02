@@ -217,80 +217,76 @@ class CategorySeries(BinaryBase):
 
 
   #Thread
-  def _check_if_continuous(self,article_tfidf,dates,events,event_labels):
+  def _check_if_continuous(self,article_tfidf,dates,events,clust_label,curr_event_id,prev_date):
      
     continuos_count = 0
     stop_count = 0
 
+
     for ev_date in dates:
-      for clust_label in events[ev_date]:
-        print("%s %s" %(ev_date, clust_label))
 
-        date_tfidfs = events[ev_date][clust_label]['events_tfidf']
+      if(clust_label not in events[ev_date].keys()):
+        continue
 
-        #cosine_scores = cosine_similarity(article_tfidf, date_tfidfs)
-        # Check  and compare all previous date event tfidfs with the current day event tfidf
-        for date_tfidf in date_tfidfs:
+      date_tfidfs = events[ev_date][clust_label]
 
-          prev_event = date_tfidfs[date_tfidf]
-          #print("Previous event id %s" %(date_tfidf))
-          #ValueError: Incompatible dimension for X and Y matrices: X.shape[1] == 5 while Y.shape[1] == 50  
-          # Truncate vectors to account for very short documents
-          if (prev_event.shape < article_tfidf.shape):
+      for date_tfidf in date_tfidfs:
 
-            #print prev_event.shape
-            #print article_tfidf.shape
+        prev_event = date_tfidfs[date_tfidf]
 
-            article_tfidf = article_tfidf[:prev_event.shape]
+        # All events might not have the same number of features
+        # Should we just skip them ?
+        if (prev_event.shape[1] < article_tfidf.shape[1] ):
+          #print "resizing..... 1"
+          article_tfidf = np.resize(article_tfidf,prev_event.shape)
+          #print article_tfidf.shape
 
-          if (prev_event.shape > article_tfidf.shape):
-            prev_event = prev_event[:article_tfidf.shape]
+        if (prev_event.shape[1] > article_tfidf.shape[1] ):
+          #print "resizing..... 2"
+          prev_event = np.resize(prev_event,article_tfidf.shape)
+          #print article_tfidf.shape        
  
-          cosine_scores = cosine_similarity(article_tfidf, prev_event)
-          if(cosine_scores[[0]] >= 0.95):
-            #print prev_event
-            #print article_tfidf
-            print("%s %s %s" %(ev_date, clust_label, date_tfidf))
-            print "Continuos event..."
-            continuos_count += 1
+        cosine_scores = cosine_similarity(article_tfidf, prev_event)
 
-            #TODO now check if the event continued to the other days
-            #TODO get the cosine scores for all the oter days
-            #TODO if none of the screos are > 0.95 the event has died
+        if(cosine_scores[[0]] >= 0.75):
+            
+          print "****"
+          print cosine_scores
+          print("%s %s %s %s %s" %(ev_date, clust_label, date_tfidf,prev_date,curr_event_id))
+          print "Continuos event..."
+          continuos_count += 1
+
+          #TODO now check if the event continued to the other days
+          #TODO get the cosine scores for all the oter days
+          #TODO if none of the screos are > 0.95 the event has died
 
 
-          #Check if continuous 
-          #pprint(cosine_scores)
-
-        #print "end of cosine scores"
-        #print continuos_count
-        #sys.exit(1)
-      #Check value of results and signal if continuous 
-      return continuos_count,stop_count 
+    return continuos_count,stop_count 
         
 
   def get_continuous_events_timeseries(self,predictions,lookback_period=5,lookback_type='hourly'):
-    
+
 
     event_predictions = defaultdict(dict)
-    event_tfidf_vectors = defaultdict(dict)
-    event_labels = defaultdict(dict)
 
     for prediction in predictions:
       label = prediction['category'] + '_' + prediction['location'] + '_events'
       date = prediction['date']
       
-      event_tfidf_vectors['events_tfidf'] = prediction['events']
 
-      event_predictions[date][label] = event_tfidf_vectors
-      event_labels[date][label] = prediction['labels']
+      event_predictions[date][label] = prediction['events']
+
+
+    # Check if each event is continuous or stop per event
+    events_duration = defaultdict(dict)
+
     # - Iterate over sorted dates
     dict_dates = sorted(event_predictions.keys())
     for  date in dict_dates:
 
       # Check if each event is continuous or stop per event
-      events_duration = defaultdict(dict)
-      events_duration_count = defaultdict(int)
+    #  events_duration = defaultdict(dict)
+     # events_duration_count = defaultdict(int)
 
 
       # - Get lookback dates
@@ -299,43 +295,30 @@ class CategorySeries(BinaryBase):
       if(date_index - lookback_period > 0):
         lookback_dates = dict_dates[date_index - lookback_period:date_index]
 
-      print 'current date...'
-      print date
-      print 'lookback dates ....'
-      pprint(lookback_dates)
       # -If lookback period does not exist for start
       if (len(lookback_dates) == 0):
         continue
 
       # - Get tf-idf vector by labels for that day
       for cluster_label in event_predictions[date]:
-        events = event_predictions[date][cluster_label]['events_tfidf']
-        print cluster_label
-        #cluster_id = event_labels[date][cluster_label]
+        events_duration_count = defaultdict(int)
+
+        events = event_predictions[date][cluster_label]
         
         # Check if each event is continuous or stop per event
         #events_duration = defaultdict(int)
 
         for event in events:
-          #pprin(events[event]) 
-          #print "first event"
-          print("Current EventID %s " %(event))
-          print events[event]
 
-          #TODO accumulate results and save for that day
-          continuous_count, stop_count = self._check_if_continuous(events[event],lookback_dates,event_predictions,event_labels)
+
+          continuous_count, stop_count = self._check_if_continuous(events[event],lookback_dates,event_predictions,cluster_label,event,date)
           events_duration_count['countinuos'] += continuous_count
           events_duration_count['stop'] += stop_count
           
-      events_duration[date][cluster_label] = events_duration_count  
-      sys.exit(0)
-        #print cluster_tfidf_vector
-        #print cluster_label
+        events_duration[date][cluster_label] = events_duration_count  
 
     pprint(events_duration)    
-        #for tf_idf_vector in tf_idf_vectors:
-        #  self._check_if_continuous(label,tf_idf_vector,lookback_dates,event_predictions)
-
+    #TODO complete
 
 
   #TODO seperate into category_timeseries & event_timeseries methods
