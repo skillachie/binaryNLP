@@ -6,11 +6,11 @@ from flask import jsonify
 from flask import request
 
 
-#Hacking stuff being done
-#We should be using Ids in db and  the works but since this is one off code for cluster evaluation
+#Very Hacky stuff being done
+#We should be using Ids in db and  the works but since this is one off code for cluster evaluation. Guess it doesnt hurt
 
 # Static directory path
-data_path = "/Users/skillachie/Documents/BinaryNLP/new/"
+data_path = "/home/dvc2106/newsblaster_project/nb_migration/stream/"
 
 
 def is_new_event(rows):
@@ -39,7 +39,7 @@ def is_new_event(rows):
 
 def connect_db():
 	print"making db call"
-	con = sqlite3.connect('events.db')
+	con = sqlite3.connect('/home/dvc2106/newsblaster_project/binaryNLP/web/events.db')
 	cur = con.cursor()    
 	cur.execute("SELECT EventId, Category,Path,Location,Date FROM Clustering_Events ORDER BY Date ASC, Category ASC, EventId ASC")
 	rows = cur.fetchall()
@@ -48,13 +48,10 @@ def connect_db():
 	return new_rows
 
 def insert_eval(eventid,category,location,date,selection):
-	con = sqlite3.connect('events.db')
+	con = sqlite3.connect('/home/dvc2106/newsblaster_project/binaryNLP/web/events.db')
 	with con:
 		cur = con.cursor() 
 		cur.execute("INSERT INTO Clustering_Events_Evaluation VALUES(?,?,?,?,?)", (eventid, category,location,date,selection))
-		print category
-		print selection
-
 
 
 # create the application object
@@ -72,28 +69,21 @@ def updateClusterEval():
 	 return jsonify(result="successfully saved evaluation")
 
 
-
 @app.route("/file")
 def readFile():
 	 file_name = request.args.get('file_name')
-	 full_path = data_path + file_name
+	 full_path = file_name
 	 fh = open(full_path, "rU")
 	 lines = fh.readlines()
 	 fh.close()
 	 return jsonify(file_name=file_name,
 	 				text = lines)
 
-# use decorators to link the function to a url
-@app.route('/')
-def home():
-    return "Hello, World!"  # return a string
-
-@app.route('/welcome')
+@app.route('/clustereval')
 def welcome():
 	items = connect_db()
-	return render_template('welcome.html',items=items)  # render a template
-
+	return render_template('clustereval.html',items=items)  # render a template
 
 # start the server with the 'run()' method
 if __name__ == '__main__':
-	app.run(debug=True)
+  app.run(host='0.0.0.0', port=8080)
