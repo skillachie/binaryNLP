@@ -19,6 +19,7 @@
         <table class="table">
           <thead>
             <tr>
+              <th>ID</th>
               <th>EventID</th>
               <th>Category</th>
               <th>Path</th>
@@ -29,14 +30,15 @@
           </thead>
 
           {% for item in items %}
-          {% if item[5] == 'new' %}
+          {% if item[6] == 'new' %}
           <!-- <tbody> -->
           <tr class="success">
             <td>{{item[0]}}</td>
             <td>{{item[1]}}</td>
-            <td data-toggle="modal" data-target="#myModal" onclick="showText(this)">{{item[2]}}</td>
-            <td>{{item[3]}}</td>
+            <td>{{item[2]}}</td>
+            <td data-toggle="modal" data-target="#myModal" onclick="showText(this)">{{item[3]}}</td>
             <td>{{item[4]}}</td>
+            <td>{{item[5]}}</td>
             <td>
 
               <div class="form-group">
@@ -55,13 +57,14 @@
 
 
         {% endif %}
-        {% if item[5] == 'old' %}
+        {% if item[6] == 'old' %}
         <tr>
           <td>{{item[0]}}</td>
           <td>{{item[1]}}</td>
-          <td data-toggle="modal" data-target="#myModal" onclick="showText(this)">{{item[2]}}</td>
-          <td>{{item[3]}}</td>
+          <td>{{item[2]}}</td>
+          <td data-toggle="modal" data-target="#myModal" onclick="showText(this)">{{item[3]}}</td>
           <td>{{item[4]}}</td>
+          <td>{{item[5]}}</td>
         </tr>
 
         {% endif %}
@@ -155,7 +158,7 @@ function saveSelection(items){
 
 
   //Post results to server
-      $.getJSON( "/clusterEval" ,{event_id:event_id,category:category,location:location,date:date,selection:selection})
+/*   $.getJSON( "/clusterEval" ,{event_id:event_id,category:category,location:location,date:date,selection:selection})
     .done(function(data) {
       console.log( data.result );
     })
@@ -164,7 +167,7 @@ function saveSelection(items){
     })
     .always(function() {
       console.log( "complete" );
-    });
+    }); */
 
 }
 
