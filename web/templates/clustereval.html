@@ -149,16 +149,18 @@ function saveSelection(items){
 
   //Get contents of row
   var event_id = childrendTRs[1].textContent
-  var category = childrendTRs[3].textContent
-  var location = childrendTRs[7].textContent
-  var date = childrendTRs[9].textContent
+  var event_label = childrendTRs[3].textContent
+  var category = childrendTRs[5].textContent
+  var location = childrendTRs[9].textContent
+  var date = childrendTRs[11].textContent
 
 
-  console.log( event_id, category,location,date ,selection);
+  console.log( event_id, event_label,category,location,date ,selection);
 
 
   //Post results to server
-/*   $.getJSON( "/clusterEval" ,{event_id:event_id,category:category,location:location,date:date,selection:selection})
+   $.getJSON( "/clusterEval"
+           ,{event_id:event_id,category:category,location:location,date:date,selection:selection,event_label:event_label})
     .done(function(data) {
       console.log( data.result );
     })
@@ -167,7 +169,7 @@ function saveSelection(items){
     })
     .always(function() {
       console.log( "complete" );
-    }); */
+    }); 
 
 }
 

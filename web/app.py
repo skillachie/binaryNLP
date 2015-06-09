@@ -18,8 +18,6 @@ def is_new_event(rows):
  new_rows = []
 
  for row in rows:
-    #pprint(row)
-    #sys.exit(0)
     curr_index = rows.index(row)
     if(curr_index-1 != 0):
         pre_index =  curr_index - 1
@@ -36,9 +34,6 @@ def is_new_event(rows):
             new_rows.append((row[0],row[1],row[2],row[3],row[4],row[5],'new'))
     else:
         new_rows.append((row[0],row[1],row[2],row[3],row[4],row[5],'new'))
-
-    #pprint(new_rows)
-    #sys.exit(1)
  return new_rows
 
 def connect_db():
@@ -52,11 +47,11 @@ def connect_db():
   #pprint(new_rows)
   return new_rows
 
-def insert_eval(eventid,category,location,date,selection):
-	con = sqlite3.connect('/home/dvc2106/newsblaster_project/binaryNLP/web/events.db')
-	with con:
-		cur = con.cursor() 
-		cur.execute("INSERT INTO Clustering_Events_Evaluation VALUES(?,?,?,?,?)", (eventid, category,location,date,selection))
+def insert_eval(eventid,category,location,date,selection,event_label):
+    #con = sqlite3.connect('/home/dvc2106/newsblaster_project/binaryNLP/web/events.db')
+    with con:
+        cur = con.cursor() 
+        cur.execute("INSERT INTO Clustering_Events_Evaluation (EventId,Category,Location,Date,Event_Type,Event_label) VALUES(?,?,?,?,?,?)", (eventid,category,location,date,selection,event_label))
 
 
 # create the application object
@@ -70,7 +65,8 @@ def updateClusterEval():
 	 location = request.args.get('location')
 	 date = request.args.get('date')
 	 selection = request.args.get('selection')
-	 insert_eval(eventid,category,location,date,selection)
+	 event_label = request.args.get('event_label')
+	 insert_eval(eventid,category,location,date,selection,event_label)
 	 return jsonify(result="successfully saved evaluation")
 
 
