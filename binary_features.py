@@ -10,6 +10,7 @@ import datetime
 import  time
 from pandas.tseries.offsets import BDay
 from sklearn.metrics.pairwise import cosine_similarity
+import pickle
 
 
 #TODO remove duplicate code
@@ -218,56 +219,77 @@ class CategorySeries(BinaryBase):
 
   #Thread
   def _check_if_continuous(self,article_tfidf,dates,events,clust_label,curr_event_id,prev_date):
-     
+    
+
     continuos_count = 0
     stop_count = 0
-
+    continuous_events_list = []
+    stop_events_list = []
 
     for ev_date in dates:
+      #print clust_label
+      #pprint(events[ev_date].keys())
 
+      # Only check for continuos events within the same category
       if(clust_label not in events[ev_date].keys()):
         continue
 
+
       date_tfidfs = events[ev_date][clust_label]
+      if not date_tfidfs:
+        #print("%s %s %s %s" %(ev_date, clust_label,prev_date,curr_event_id))
+        stop_events_list.append((str(prev_date) + '_' + clust_label + '_' + str(curr_event_id) , ))
+        stop_count += 1
 
+
+      # Iterate each event
       for date_tfidf in date_tfidfs:
-
         prev_event = date_tfidfs[date_tfidf]
 
-        # All events might not have the same number of features
-        # Should we just skip them ?
-        if (prev_event.shape[1] < article_tfidf.shape[1] ):
-          #print "resizing..... 1"
-          article_tfidf = np.resize(article_tfidf,prev_event.shape)
-          #print article_tfidf.shape
 
-        if (prev_event.shape[1] > article_tfidf.shape[1] ):
+        print article_tfidf.shape
+        pprint(article_tfidf)
+        print prev_event.shape
+        pprint(prev_event)
+
+        # All events might not have the same number of occurrences/documents 
+        if (prev_event.shape[0] < article_tfidf.shape[0] ):
+            article_tfidf = np.resize(article_tfidf,prev_event.shape)
+            #print article_tfidf.shape
+
+        if (prev_event.shape[0] > article_tfidf.shape[0] ):
           #print "resizing..... 2"
           prev_event = np.resize(prev_event,article_tfidf.shape)
-          #print article_tfidf.shape        
- 
+
         cosine_scores = cosine_similarity(article_tfidf, prev_event)
+        #print("%s %s %s %s %s" %(ev_date, clust_label, date_tfidf,prev_date,curr_event_id))
+        print cosine_scores
 
         if(cosine_scores[[0]] >= 0.75):
+          continuous_events_list.append((str(prev_date) + '_' + clust_label + '_' + str(curr_event_id) , str(ev_date) + '_' + clust_label +'_' + str(date_tfidf)))
             
-          print "****"
-          print cosine_scores
-          print("%s %s %s %s %s" %(ev_date, clust_label, date_tfidf,prev_date,curr_event_id))
-          print "Continuos event..."
+          #print "****"
+          #print cosine_scores
+          #print("%s %s %s %s %s" %(ev_date, clust_label, date_tfidf,prev_date,curr_event_id))
+          #print "Continuos event..."
           continuos_count += 1
+        else:
 
-          #TODO now check if the event continued to the other days
-          #TODO get the cosine scores for all the oter days
-          #TODO if none of the screos are > 0.95 the event has died
+          #print cosine_scores
+          #print("%s %s %s %s %s" %(ev_date, clust_label, date_tfidf,prev_date,curr_event_id))
+          print "Stop event..."
+          stop_events_list.append((str(prev_date) + '_' + clust_label + '_' + str(curr_event_id) , str(ev_date) + '_' + clust_label +'_' + str(date_tfidf)))
+          stop_count += 1
 
-
-    return continuos_count,stop_count 
+    return continuos_count,continuous_events_list, stop_count, stop_events_list
         
 
   def get_continuous_events_timeseries(self,predictions,lookback_period=5,lookback_type='hourly'):
 
 
     event_predictions = defaultdict(dict)
+    continuous_events_list = []
+    stop_events_list = []
 
     for prediction in predictions:
       label = prediction['category'] + '_' + prediction['location'] + '_events'
@@ -304,22 +326,77 @@ class CategorySeries(BinaryBase):
         events_duration_count = defaultdict(int)
 
         events = event_predictions[date][cluster_label]
-        
+        #pprint(events) 
         # Check if each event is continuous or stop per event
         #events_duration = defaultdict(int)
 
         for event in events:
 
+          continuous_count,continuous_events, stop_count, stop_events = self._check_if_continuous(events[event],lookback_dates,event_predictions,cluster_label,event,date)
 
-          continuous_count, stop_count = self._check_if_continuous(events[event],lookback_dates,event_predictions,cluster_label,event,date)
+          if(continuous_count != 0):
+            continuous_events_list.extend(continuous_events)
+
+
+          if(stop_count != 0):
+            stop_events_list.extend(stop_events)
+
           events_duration_count['countinuos'] += continuous_count
           events_duration_count['stop'] += stop_count
-          
-        events_duration[date][cluster_label] = events_duration_count  
 
-    pprint(events_duration)    
-    #TODO complete
+        events_duration[date][cluster_label + '_countinuous'] = events_duration_count['countinuos']  
+        events_duration[date][cluster_label + '_stop'] = events_duration_count['stop']  
 
+    #pprint(events_duration)   
+    #pprint(continuous_events_list)
+    #pprint(stop_events_list)
+    series = self._create_series(events_duration)
+    series = series.fillna(0)
+    print series.head()
+
+    if self.add_noise:
+      print 'adding noise'
+      pd_matrix = series.as_matrix()
+      noise = np.random.normal(size=pd_matrix.shape)
+      noise_m = pd_matrix + noise
+      series = pd.DataFrame(noise_m,series.index,series.columns.values)
+
+    
+    to_drop = []
+    for day_count in xrange(0,len(series.index)):
+      if series.index[day_count] not in self.bus_range:
+        # Move values forward for this day to the next
+        # Cant use standard pandas functions since it will shit entire dataset
+      
+        cur_index = series.index[day_count]
+        
+        #Indices to drop
+        to_drop.append(cur_index)
+      
+        # - If last index break and drop  
+        nxt = day_count + 1
+        if (nxt >= len(series.index)):
+          break
+
+        next_index = series.index[day_count + 1]
+        cur_day = series.ix[cur_index]  
+        next_day = series.ix[next_index]
+
+        cumm_day = cur_day + next_day
+      
+        # Update next day index with new values
+        series.ix[next_index]  = cumm_day
+        
+
+    # Drop weekend indices
+    series.drop(to_drop,inplace=True)
+    print 'passed business day filter'
+    print series.head()
+
+    quantile_series = self._create_binary_series_quantile(series)
+    return quantile_series
+    #return events_duration
+    
 
   #TODO seperate into category_timeseries & event_timeseries methods
   def get_event_timeseries(self,predictions):

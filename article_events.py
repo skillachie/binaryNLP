@@ -15,8 +15,10 @@ from collections import defaultdict
 from multiprocessing import Pool,Manager
 import  multiprocessing
 from multiprocessing.pool import ThreadPool
-from sklearn.metrics.pairwise import pairwise_distances
 import numpy as np
+import sqlite3
+from sklearn.metrics.pairwise import cosine_similarity
+
 
 class Events(object):
 
@@ -28,11 +30,12 @@ class Events(object):
 
     # Removing infrequent words
     self.vec = TfidfVectorizer(input='filename',
-            stop_words=stopwords.words('english'),
-            ngram_range=(1,1),
-            max_features=50,
-            use_idf=True
-            )
+                stop_words=stopwords.words('english'),
+                ngram_range=(1,2),
+                max_features=100,
+                use_idf=True
+              )
+
 
     
   def _group_by_category(self):
@@ -46,36 +49,115 @@ class Events(object):
 
   def _identify_events(self,articles,event_result,debug=False):
 
+
     articles_list = []
     for article in articles:
       articles_list.append(article['file'])
 
-    # Removing infrequent words
-    #vec = TfidfVectorizer(input='filename',
-    #        stop_words=stopwords.words('english'),
-    #        ngram_range=(1,1),
-    #        use_idf=True
-    #        )
 
     X = self.vec.fit_transform(articles_list)
+    #words = self.vec.get_feature_names()
     #print("n_samples: %d, n_features: %d" % X.shape)
     #print idf_vector
 
     labels = AffinityPropagation(max_iter=4000,damping=0.95,convergence_iter=400).fit_predict(X)
-    #af = AffinityPropagation(damping=0.7).fit(X)
-    #cluster_centers_indices = af.cluster_centers_indices_
+
+    #Aggregate clustering results
+    articles_by_labels,articles_path = self._aggr_by_labels(labels,X,articles_list)
+
+    #Updated articles
+    labels = []
+    articles_list = []
+    new_X = []
+
+    for label in articles_path:
+      labels.extend([label] * len(articles_path[label]))
+      articles_list.extend(articles_path[label])
+      new_X.extend(articles_by_labels[label])
 
 
-    # Cluster ids
-    #labels = af.labels_
-
+   # print labels
+    #print "***"
     if debug:
       results = pd.DataFrame(articles_list,labels)
       file_name = event_result['date'].strftime("%Y-%m-%d %H:%M:%S") + '_'+ event_result['category']  + '_' + event_result['location'] + 'clusters.csv'
       results.to_csv(file_name)
 
-    return labels, X
+      # Write to SQL Lite
+      event_entries = []
+      for article_path, label in zip(articles_list,labels):
+        event_entries.append((label,event_result['date'].strftime("%Y-%m-%d"),event_result['category'],event_result['location'],article_path))
+     
+      event_entries_tup = tuple(event_entries) 
+      pprint(event_entries_tup)
+      con = sqlite3.connect('/home/dvc2106/newsblaster_project/binaryNLP/web/events_id.db')
+     
+      with con:
+    
+        cur = con.cursor()    
+        #cur.execute("CREATE TABLE Clustering_Events(EventId INT, Date TEXT, Category TEXT,Location TEXT, Path TEXT)")
+        cur.executemany("INSERT INTO Clustering_Events (EventId,Date,Category,Location,Path) VALUES(?, ?, ?, ?, ?)", event_entries_tup)
 
+    return labels, new_X
+
+  def _aggr_by_labels(self,labels,tfidf_vectors,articles):
+
+    articles_updated = defaultdict(list)
+    articles_by_label = defaultdict(list)
+
+    #tf_idf by date , category and label
+    for label, tfidf_vector, article in zip(labels,tfidf_vectors,articles):
+      articles_by_label[label].append(tfidf_vector.toarray())
+      articles_updated[label].append(article)
+
+    # Drop clusters with  less than 3 documents
+    for label in articles_by_label.keys():
+      if (len(articles_by_label[label]) < 3):
+        del articles_by_label[label]
+        del articles_updated[label]
+
+    #Identify and remove duplicate articles
+    #for label in articles_by_label.keys():
+    #  article_vectors = articles_by_label[label]
+    #  num_vec = len(article_vectors)
+    #  for ix in range(num_vec):
+    #    iy = ix + 1
+    #    if(iy <= num_vec - 1 ):
+    #      for iz in range(iy,num_vec -1):
+    #        print ix
+    #        print iz
+    #        cosine_scores = cosine_similarity(article_vectors[ix].flatten(),article_vectors[iz])
+    #        pprint(cosine_scores)
+
+
+    return articles_by_label, articles_updated
+
+  def gen_tf_idf(self,arg_list):
+ 
+    # - Unpack variables
+    job_queue = arg_list[0]
+    debug = arg_list[1] 
+
+    while not job_queue.empty():
+      job = job_queue.get(block=False)
+      articles = job[0]
+      category = job[1]
+      date = job[2]
+      location = job[3]
+      print date, category,location
+
+      event_result = defaultdict(dict)
+
+      event_result['date'] = date
+      event_result['category'] = category
+      event_result['location'] = location
+
+      articles_list = []
+      for article in articles:
+        articles_list.append(article['file'])
+
+      # learn vocab
+      self.vec.fit(articles_list)
 
   def count_events(self,arg_list):
  
@@ -100,9 +182,14 @@ class Events(object):
 
       labels, tfidf_vectors = self._identify_events(articles,event_result,debug)
       num_events = len(set(labels))
-      
+    
+      #print "*****"
+      #print len(labels)
+      #print len(tfidf_vectors)
+      #print "*****"
+
       # Sanity check
-      if(len(labels) != tfidf_vectors.shape[0]):
+      if(len(labels) != len(tfidf_vectors)):
         raise Exception("Number of labels and tf-idf vectors do not match")
      
  
@@ -112,15 +199,25 @@ class Events(object):
       articles_by_labels = defaultdict(list)
       #tf_idf by date , category and label
       for label, tfidf_vector in zip(labels, tfidf_vectors):
-        articles_by_labels[label].append(tfidf_vector.toarray())  
+        #print tfidf_vector
+        #print tfidf_vector.flatten()
+        #print "******"
+        articles_by_labels[label].append(tfidf_vector.flatten())  
         
  
       # Average  cluster article tf_idfs
       events_tfidf = defaultdict(dict)
       for cluster_label in articles_by_labels:
-    
+        
+        #if (len(articles_by_labels[cluster_label]) == 4 and category == 'sci_tech'):
+        #  print category
+        #  print cluster_label  
+        #  pprint(articles_by_labels[cluster_label])
+        #  print words
+        #sys.exit(0)
+
         #print articles_by_labels[cluster_label]
-        tfidf_avg = np.mean(articles_by_labels[cluster_label],axis=0)
+        tfidf_avg = np.mean(articles_by_labels[cluster_label],axis=1)
         events_tfidf[cluster_label] = tfidf_avg
           
 
@@ -166,6 +263,7 @@ class Events(object):
 
     mgm = Manager()
     job_queue = mgm.Queue()
+    tf_queue = mgm.Queue()
     result_queue = mgm.Queue()
 
     # group articles by category
@@ -179,8 +277,24 @@ class Events(object):
         for location in articles_by_location:
           #Add articles to job queue
           job_queue.put((articles_by_location[location],category,article_date,location))
+          tf_queue.put((articles_by_location[location],category,article_date,location))
 
 
+    # Generate TF-IDFs
+    print 'Starting TF-IDFn...'
+    pool = []
+    for i in xrange(n_procs):
+      p = multiprocessing.Process(
+      target=self.gen_tf_idf, args=((tf_queue,result_queue,False),),)
+      p.start()
+      pool.append(p)
+
+    for p in pool:
+      p.join()
+  
+
+
+    # Start event identification 
     print 'Starting Event Identification...'
 
     # - Pool
@@ -188,7 +302,7 @@ class Events(object):
     for i in xrange(n_procs):
       p = multiprocessing.Process(
       #target=self.count_events, args=((job_queue,result_queue,True),),)
-      target=self.count_events, args=((job_queue,result_queue,True),),)
+      target=self.count_events, args=((job_queue,result_queue,False),),)
       p.start()
       pool.append(p)
 

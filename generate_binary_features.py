@@ -37,16 +37,19 @@ def text_classif_features(directory,match,start,end,outpath,cpus,aggr_freq,add_n
     for result in event_results:
       event_counts.append(result)
 
-
     # Event counts
     event_series = CategorySeries(start,end,aggr_freq,add_noise)
     event_count_results = event_series.get_event_timeseries(event_counts)
     event_count_results.to_csv('event_features_count.csv') 
 
-    # Continuos Events
-    #event_countinuous_results = event_series.get_continuous_events_timeseries(event_counts,5,'daily')
-   
-    mpd = series_result.join(event_count_results, how='outer')
+    # Continuos  and Stop Events
+    pprint(event_count_results)
+    event_countinuous_results = event_series.get_continuous_events_timeseries(event_counts,5,'daily')
+    pprint(event_countinuous_results)
+
+    tmp_d = event_count_results.join(event_countinuous_results, how='outer')
+
+    mpd = series_result.join(tmp_d, how='outer')
     mpd.to_csv(outpath)
 
 def split_date(date_str):
